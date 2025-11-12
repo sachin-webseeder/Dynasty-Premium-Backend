@@ -27,7 +27,6 @@ const protect = asyncHandler(async (req, res, next) => {
   }
 });
 
-// ROLE CHECK 
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -36,7 +35,7 @@ const authorize = (...roles) => {
     }
     if (!roles.includes(req.user.role)) {
       res.status(403);
-      throw new Error(`Forbidden: ${req.user.role} access denied`);
+      throw new Error(`Forbidden: ${req.user.role} is not authorized`);
     }
     next();
   };
