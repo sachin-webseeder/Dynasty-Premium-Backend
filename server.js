@@ -15,10 +15,29 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-app.use(cors());
+
+// CORS CONFIGURATION
+
+const corsOptions = {
+  origin: [
+    'http://localhost:3000',     // React default
+    'http://localhost:5173',     // Vite default
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173',
+    `https://dynasty2025.netlify.app/`
+   
+    
+  ],
+  credentials: true,             
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+app.use(cors(corsOptions));
+
 app.use(express.json());
 
-// Serve uploaded images (local multer)
+// Serve uploaded images
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Connect DB
@@ -33,7 +52,7 @@ app.use("/api/customer", customerRoutes);
 app.get('/', (req, res) => {
   res.json({ 
     message: 'DYNASTY PREMIUM BACKEND LIVE', 
-    status: 'PHASE 1 (AUTH) + PHASE 3 (PRODUCTS) = 100% READY',
+    status: 'running',
     time: new Date().toLocaleString('en-IN')
   });
 });
