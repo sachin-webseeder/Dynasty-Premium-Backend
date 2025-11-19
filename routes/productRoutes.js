@@ -16,7 +16,7 @@ const router = express.Router();
 router.post("/add-product", protect, authorize('SuperAdmin', 'Admin'), upload.single("image"), addProduct);
 
 // GET ALL PRODUCTS
-router.get("/", protect, getProducts);
+router.get("/", getProducts);
 
 // GET SINGLE PRODUCT
 router.get("/product/:id", protect, getProductById);
