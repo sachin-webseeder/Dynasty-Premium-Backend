@@ -2,35 +2,65 @@
 import User from "../models/User.js";
 import asyncHandler from "express-async-handler";
 
-// SINGLE API: GET CUSTOMERS (Admin) OR MY PROFILE (Customer)
+//GET CUSTOMERS (Admin) OR MY PROFILE (Customer)
 export const getCustomerData = asyncHandler(async (req, res) => {
-  const { search, customerType } = req.query;
+  const { search, customerType, status } = req.query;
 
   // ADMIN: GET ALL CUSTOMERS
   if (req.user.role === "SuperAdmin" || req.user.role === "Admin") {
-    let query = { role: "Customer", isEnabled: true };
+    let query = { role: "Customer" }; 
 
-    if (search) {
+    // Search filter (name, email, phone)
+    if (search && search.trim()) {
       query.$or = [
         { firstName: { $regex: search, $options: "i" } },
+        { lastName: { $regex: search, $options: "i" } },
         { email: { $regex: search, $options: "i" } },
         { phone: { $regex: search, $options: "i" } }
       ];
     }
-    if (customerType && customerType !== "All") query.customerType = customerType;
+
+    // Customer type filter (high-value, returning, new)
+    if (customerType && customerType !== "All") {
+      query.customerType = customerType;
+    }
+
+    // Status filter (active/inactive) - Optional
+    if (status && status !== "All Status") {
+      query.isEnabled = status === "active";
+    }
 
     const customers = await User.find(query)
-      .select("firstName lastName email phone customerType totalOrders totalSpent lastOrder isEnabled")
+      .select("firstName lastName email phone customerType totalOrders totalSpent lastOrder isEnabled createdAt")
       .sort({ createdAt: -1 });
 
+    // Stats calculation
+    const allCustomers = await User.countDocuments({ role: "Customer" });
+    const activeCustomers = await User.countDocuments({ role: "Customer", isEnabled: true });
+    const returningCustomers = await User.countDocuments({ 
+      role: "Customer", 
+      customerType: "Returning" 
+    });
+    const highValueCustomers = await User.countDocuments({ 
+      role: "Customer", 
+      customerType: "High-Value" 
+    });
+
     const stats = {
-      total: await User.countDocuments({ role: "Customer", isEnabled: true }),
-      active: await User.countDocuments({ role: "Customer", isEnabled: true }),
-      returning: await User.countDocuments({ role: "Customer", customerType: "Returning" }),
-      highValue: await User.countDocuments({ role: "Customer", customerType: "High-Value" })
+      total: allCustomers,
+      active: activeCustomers,
+      inactive: allCustomers - activeCustomers,
+      returning: returningCustomers,
+      highValue: highValueCustomers
     };
 
-    res.json({ success: true, view: "admin", stats, total: customers.length, customers });
+    res.json({ 
+      success: true, 
+      view: "admin", 
+      stats, 
+      total: customers.length, 
+      customers 
+    });
   }
 
   // CUSTOMER: GET MY PROFILE
@@ -38,6 +68,11 @@ export const getCustomerData = asyncHandler(async (req, res) => {
     const customer = await User.findById(req.user._id)
       .select("-password")
       .populate("cart.product");
+
+    if (!customer) {
+      res.status(404);
+      throw new Error("Customer not found");
+    }
 
     res.json({ success: true, view: "customer", customer });
   }
@@ -48,7 +83,7 @@ export const getCustomerData = asyncHandler(async (req, res) => {
   }
 });
 
-// TOGGLE ENABLE (Admin only)
+// TOGGLE ENABLE/DISABLE (Admin only)
 export const toggleCustomer = asyncHandler(async (req, res) => {
   if (!["SuperAdmin", "Admin"].includes(req.user.role)) {
     res.status(403);
@@ -56,15 +91,27 @@ export const toggleCustomer = asyncHandler(async (req, res) => {
   }
 
   const customer = await User.findById(req.params.id);
-  if (!customer || customer.role !== "Customer") {
+  
+  if (!customer) {
     res.status(404);
     throw new Error("Customer not found");
   }
 
+  if (customer.role !== "Customer") {
+    res.status(400);
+    throw new Error("User is not a customer");
+  }
+
+  // Toggle isEnabled status
   customer.isEnabled = !customer.isEnabled;
   await customer.save();
 
-  res.json({ success: true, isEnabled: customer.isEnabled });
+  res.json({ 
+    success: true, 
+    message: `Customer ${customer.isEnabled ? 'enabled' : 'disabled'} successfully`,
+    isEnabled: customer.isEnabled,
+    status: customer.isEnabled ? 'active' : 'inactive'
+  });
 });
 
 
@@ -72,7 +119,7 @@ export const toggleCustomer = asyncHandler(async (req, res) => {
 export const updateCustomer = asyncHandler(async (req, res) => {
   const { firstName, lastName, email, phone } = req.body;
 
-  // Determine target ID
+ 
   let targetId;
   if (req.params.id) {
     // Admin updating any customer
@@ -96,12 +143,27 @@ export const updateCustomer = asyncHandler(async (req, res) => {
     throw new Error("Customer not found");
   }
 
+  // Check if customer role is correct
+  if (customer.role !== "Customer") {
+    res.status(400);
+    throw new Error("User is not a customer");
+  }
+
   // Email uniqueness check
   if (email && email !== customer.email) {
-    const exists = await User.findOne({ email });
+    const exists = await User.findOne({ email, _id: { $ne: targetId } });
     if (exists) {
       res.status(400);
       throw new Error("Email already in use");
+    }
+  }
+
+  // Phone uniqueness check
+  if (phone && phone !== customer.phone) {
+    const exists = await User.findOne({ phone, _id: { $ne: targetId } });
+    if (exists) {
+      res.status(400);
+      throw new Error("Phone number already in use");
     }
   }
 
@@ -122,7 +184,9 @@ export const updateCustomer = asyncHandler(async (req, res) => {
       lastName: customer.lastName,
       email: customer.email,
       phone: customer.phone,
-      customerType: customer.customerType
+      customerType: customer.customerType,
+      isEnabled: customer.isEnabled,
+      status: customer.isEnabled ? 'active' : 'inactive'
     }
   });
 });
