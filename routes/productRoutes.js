@@ -5,26 +5,52 @@ import {
   getProducts,
   getProductById,
   updateProduct,
-  deleteProduct
+  deleteProduct,
+  getProductsGroupedByCategory
 } from "../controllers/productController.js";
 import upload from "../config/multer.js";
 import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// ADD PRODUCT
-router.post("/add-product", protect, authorize('SuperAdmin', 'Admin'), upload.single("image"), addProduct);
 
-// GET ALL PRODUCTS
-router.get("/", getProducts);
+//PUBLIC ROUTES
+  // GET ALL PRODUCTS (with filters)
+  router.get("/", getProducts);
 
-// GET SINGLE PRODUCT
-router.get("/product/:id", protect, getProductById);
+  // GET PRODUCTS GROUPED BY CATEGORY 
+  router.get("/grouped", getProductsGroupedByCategory);
 
-// UPDATE PRODUCT
-router.put("/update-product/:id", protect, authorize('SuperAdmin', 'Admin'), upload.single("image"), updateProduct);
+  // GET SINGLE PRODUCT
+  router.get("/product/:id", getProductById);
 
-// DELETE PRODUCT
-router.delete("/delete-product/:id", protect, authorize('SuperAdmin', 'Admin'), deleteProduct);
+
+//ADMIN ROUTES (Protected)
+
+  // ADD PRODUCT
+  router.post(
+    "/add-product", 
+    protect, 
+    authorize('SuperAdmin', 'Admin'), 
+    upload.single("image"), 
+    addProduct
+  );
+
+  // UPDATE PRODUCT
+  router.put(
+    "/update-product/:id", 
+    protect, 
+    authorize('SuperAdmin', 'Admin'), 
+    upload.single("image"), 
+    updateProduct
+  );
+
+  // DELETE PRODUCT
+  router.delete(
+    "/delete-product/:id", 
+    protect, 
+    authorize('SuperAdmin', 'Admin'), 
+    deleteProduct
+  );
 
 export default router;

@@ -8,7 +8,7 @@ import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import productRoutes from './routes/productRoutes.js'; 
 import customerRoutes from "./routes/customerRoutes.js";
-
+import categoryRoutes from "./routes/categoryRoutes.js";
 dotenv.config();
 const app = express();
 
@@ -45,8 +45,9 @@ connectDB();
 
 // ROUTES 
 app.use('/api/auth', authRoutes);         
-app.use('/api/products', productRoutes);  
 app.use("/api/customer", customerRoutes);
+app.use('/api/products', productRoutes);  
+app.use("/api/categories", categoryRoutes);
 
 // Test Route
 app.get('/', (req, res) => {
