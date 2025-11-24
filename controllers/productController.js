@@ -23,7 +23,6 @@ const isValidObjectId = (id) => {
   return mongoose.Types.ObjectId.isValid(id) && id.match(/^[0-9a-fA-F]{24}$/);
 };
 
-
 // ADD PRODUCT API
 export const addProduct = asyncHandler(async (req, res) => {
   const body = req.body;
@@ -48,8 +47,8 @@ export const addProduct = asyncHandler(async (req, res) => {
         message: "Category not found",
       });
     }
-  } 
-  
+  }
+
   // CASE 2 → New category entered as text
   else {
     const newCatName = categoryId;
@@ -58,13 +57,13 @@ export const addProduct = asyncHandler(async (req, res) => {
     const existing = await Category.findOne({ name: newCatName });
     if (existing) {
       categoryDoc = existing;
-    } 
+    }
     else {
       // Create a new category
       categoryDoc = await Category.create({
         name: newCatName,
         displayName: newCatName,
-        icon: "📦",   // optional 
+        icon: "📦",   // optional
         image: null,
       });
     }
@@ -85,6 +84,7 @@ export const addProduct = asyncHandler(async (req, res) => {
     dishName: body.dishName.trim(),
     category: categoryId,
     volume: body.volume?.trim() || "1 Litre Pouch",
+    availableQuantities: parseJSON(body.availableQuantities),
     attributes: parseJSON(body.attributes),
     price,
     originalPrice,
@@ -113,7 +113,6 @@ export const addProduct = asyncHandler(async (req, res) => {
   });
 });
 
-
 // Get All PRODUCTd API
 export const getProducts = asyncHandler(async (req, res) => {
   const { search = "", category = "All", platform = "web" } = req.query;
@@ -123,7 +122,7 @@ export const getProducts = asyncHandler(async (req, res) => {
   let query = {};
 
 
-  // SEARCH FILTER 
+  // SEARCH FILTER
 
   if (search.trim()) {
     query.dishName = {
@@ -132,16 +131,16 @@ export const getProducts = asyncHandler(async (req, res) => {
     };
   }
 
-  
-  // CATEGORY FILTER 
- 
+
+  // CATEGORY FILTER
+
   if (category !== "All") {
     const trimmedCat = category.trim();
 
     if (mongoose.Types.ObjectId.isValid(trimmedCat)) {
       query.category = trimmedCat;
     } else {
-      
+
       const catDoc = await Category.findOne({
         name: { $regex: `^${trimmedCat}$`, $options: "i" },
       });
@@ -154,8 +153,8 @@ export const getProducts = asyncHandler(async (req, res) => {
     }
   }
 
- 
-      //GET PRODUCTS
+
+  //GET PRODUCTS
 
   const products = await Product.find(query)
     .populate("category", "name displayName icon")
@@ -165,7 +164,7 @@ export const getProducts = asyncHandler(async (req, res) => {
     return res.json({ success: true, total: 0, products: [] });
   }
 
- 
+
   const formatProduct = (p) => {
     let savings = null;
 
@@ -186,6 +185,7 @@ export const getProducts = asyncHandler(async (req, res) => {
       discount: savings ? `${savings.percent}% OFF` : null,
       savings: savings ? `Saving ₹${savings.amount}` : null,
       volume: p.volume,
+      availableQuantities: p.availableQuantities || [],
       attributes: p.attributes || [],
       benefits: p.benefits || [],
       inStock: p.stock > 0,
@@ -193,9 +193,9 @@ export const getProducts = asyncHandler(async (req, res) => {
     };
   };
 
- 
-    // MOBILE FORMAT
-  
+
+  // MOBILE FORMAT
+
   if (platform === "mobile") {
     const mobileProducts = products.map(formatProduct);
 
@@ -206,9 +206,9 @@ export const getProducts = asyncHandler(async (req, res) => {
     });
   }
 
- 
-    // WEB FORMAT
-  
+
+  // WEB FORMAT
+
   const webProducts = products.map(formatProduct);
 
   return res.json({
@@ -237,9 +237,9 @@ export const getProductById = asyncHandler(async (req, res) => {
     .populate('category', 'name displayName icon');
 
   if (!product) {
-    return res.status(404).json({ 
-      success: false, 
-      message: "Product not found" 
+    return res.status(404).json({
+      success: false,
+      message: "Product not found"
     });
   }
 
@@ -263,6 +263,7 @@ export const getProductById = asyncHandler(async (req, res) => {
         name: product.dishName,
         category: product.category?.displayName || "Uncategorized",
         volume: product.volume,
+        availableQuantities: product.availableQuantities || [],
         attributes: product.attributes || [],
         price: product.price,
         originalPrice: product.originalPrice || null,
@@ -306,11 +307,11 @@ export const updateProduct = asyncHandler(async (req, res) => {
   }
 
   const product = await Product.findById(productId);
-  
+
   if (!product) {
-    return res.status(404).json({ 
-      success: false, 
-      message: "Product not found" 
+    return res.status(404).json({
+      success: false,
+      message: "Product not found"
     });
   }
 
@@ -319,19 +320,19 @@ export const updateProduct = asyncHandler(async (req, res) => {
   // Validate category if being updated
   if (body.category && body.category !== product.category.toString()) {
     const categoryId = body.category.trim();
-    
+
     if (!isValidObjectId(categoryId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid category ID format"
       });
     }
-    
+
     const categoryExists = await Category.findById(categoryId);
     if (!categoryExists) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Category not found" 
+      return res.status(404).json({
+        success: false,
+        message: "Category not found"
       });
     }
   }
@@ -340,7 +341,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
   let discountPercent = product.discountPercent;
   const newPrice = toNum(body.price);
   const newOriginalPrice = toNum(body.originalPrice);
-  
+
   if (newOriginalPrice && newPrice) {
     if (newOriginalPrice > newPrice) {
       discountPercent = Math.round(((newOriginalPrice - newPrice) / newOriginalPrice) * 100);
@@ -353,6 +354,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
   product.dishName = body.dishName?.trim() || product.dishName;
   product.category = body.category?.trim() || product.category;
   product.volume = body.volume?.trim() || product.volume;
+  product.availableQuantities = body.availableQuantities ? parseJSON(body.availableQuantities) : product.availableQuantities;
   product.attributes = body.attributes ? parseJSON(body.attributes) : product.attributes;
   product.price = newPrice ?? product.price;
   product.originalPrice = newOriginalPrice ?? product.originalPrice;
@@ -362,14 +364,14 @@ export const updateProduct = asyncHandler(async (req, res) => {
   product.calories = toNum(body.calories) ?? product.calories;
   product.description = body.description ?? product.description;
   product.benefits = body.benefits ? parseJSON(body.benefits) : product.benefits;
-  product.availableForOrder = body.availableForOrder === "true" ? true : 
-                               body.availableForOrder === "false" ? false : 
-                               product.availableForOrder;
-  product.vegetarian = body.vegetarian === "true" ? true : 
-                        body.vegetarian === "false" ? false : 
-                        product.vegetarian;
-  product.isVIP = body.isVIP === "true" ? true : 
-                   body.isVIP === "false" ? false : 
+  product.availableForOrder = body.availableForOrder === "true" ? true :
+                             body.availableForOrder === "false" ? false :
+                             product.availableForOrder;
+  product.vegetarian = body.vegetarian === "true" ? true :
+                         body.vegetarian === "false" ? false :
+                         product.vegetarian;
+  product.isVIP = body.isVIP === "true" ? true :
+                   body.isVIP === "false" ? false :
                    product.isVIP;
   product.stock = toNum(body.stock) ?? product.stock;
 
@@ -387,10 +389,10 @@ export const updateProduct = asyncHandler(async (req, res) => {
   await product.save();
   await product.populate('category', 'name displayName icon');
 
-  res.json({ 
-    success: true, 
-    message: "Product updated successfully", 
-    product 
+  res.json({
+    success: true,
+    message: "Product updated successfully",
+    product
   });
 });
 
@@ -409,11 +411,11 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   }
 
   const product = await Product.findById(productId);
-  
+
   if (!product) {
-    return res.status(404).json({ 
-      success: false, 
-      message: "Product not found" 
+    return res.status(404).json({
+      success: false,
+      message: "Product not found"
     });
   }
 
@@ -427,9 +429,9 @@ export const deleteProduct = asyncHandler(async (req, res) => {
 
   await product.deleteOne();
 
-  res.json({ 
-    success: true, 
-    message: "Product deleted successfully" 
+  res.json({
+    success: true,
+    message: "Product deleted successfully"
   });
 });
 
@@ -437,7 +439,6 @@ export const deleteProduct = asyncHandler(async (req, res) => {
 // GET PRODUCTS GROUPED BY CATEGORY
 
 export const getProductsGroupedByCategory = asyncHandler(async (req, res) => {
-  // FIXED: Load all categories (old docs don't have isActive field)
   const categories = await Category.find()
     .sort({ sortOrder: 1 });
 
@@ -457,7 +458,11 @@ export const getProductsGroupedByCategory = asyncHandler(async (req, res) => {
           const savingPercent = Math.round((savingAmount / product.originalPrice) * 100);
           savings = { amount: savingAmount.toFixed(2), percent: savingPercent };
         }
-        return { ...product, savings };
+        return {
+          ...product,
+          savings,
+          availableQuantities: product.availableQuantities || []
+        };
       });
 
       return {

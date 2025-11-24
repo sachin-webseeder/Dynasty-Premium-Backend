@@ -16,8 +16,17 @@ const productSchema = new mongoose.Schema(
 
     volume: {
       type: String,
-      required: true
     },
+
+
+    availableQuantities: [
+      {
+        label: { type: String, required: true },   // "500 ml"
+        value: { type: Number, required: true },   // 500
+        unit: { type: String, required: true },    // "ml"
+        price: { type: Number, required: false }   // optional price
+      }
+    ],
 
     attributes: [String],
 
