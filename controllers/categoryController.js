@@ -21,7 +21,7 @@ export const getAllCategories = asyncHandler(async (req, res) => {
         name: cat.name,
         displayName: cat.displayName,
         icon: cat.icon,
-        image: cat.image ? `${BASE_URL}${cat.image}` : null,
+        image: cat.image ? `${process.env.BASE_URL}${cat.image}` : null,
         productCount,
       };
     })
