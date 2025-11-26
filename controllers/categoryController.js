@@ -21,7 +21,7 @@ export const getAllCategories = asyncHandler(async (req, res) => {
         name: cat.name,
         displayName: cat.displayName,
         icon: cat.icon,
-        image: cat.image,   // ✅ FIX: image added
+        image: cat.image ? `${BASE_URL}${cat.image}` : null,
         productCount,
       };
     })
@@ -55,7 +55,7 @@ export const getProductsByCategory = async (req, res) => {
         _id: category._id,
         name: category.name,
         displayName: category.displayName,
-        image: category.image,  // ✅ FIX
+        image: category.image ? `${process.env.BASE_URL}${category.image}` : null,
       },
       products,
     });
@@ -127,7 +127,8 @@ export const createCategory = async (req, res) => {
       icon,
       description,
       sortOrder,
-      image: req.file ? `/uploads/categories/${req.file.filename}` : null, // VALID
+      image: req.file ? `${process.env.BASE_URL}/uploads/categories/${req.file.filename}` : null,
+
     });
 
     await category.save();
@@ -148,7 +149,8 @@ export const updateCategory = async (req, res) => {
     const updateData = { ...req.body };
 
     if (req.file) {
-      updateData.image = `/uploads/categories/${req.file.filename}`;
+      updateData.image = `${process.env.BASE_URL}/uploads/${req.file.filename}`;
+
     }
 
     const category = await Category.findByIdAndUpdate(
