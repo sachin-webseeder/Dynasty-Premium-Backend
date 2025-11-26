@@ -80,7 +80,7 @@ export const getProductsGroupedByCategory = async (req, res) => {
             name: cat.name,
             displayName: cat.displayName,
             icon: cat.icon,
-            image: cat.image,  // already correct
+           image: cat.image ? `${process.env.BASE_URL}${cat.image}` : null,
           },
           products,
         };
@@ -127,7 +127,7 @@ export const createCategory = async (req, res) => {
       icon,
       description,
       sortOrder,
-      image: req.file ? `${process.env.BASE_URL}/uploads/categories/${req.file.filename}` : null,
+     image: req.file ? `/uploads/${req.file.filename}` : null
 
     });
 
@@ -149,8 +149,7 @@ export const updateCategory = async (req, res) => {
     const updateData = { ...req.body };
 
     if (req.file) {
-      updateData.image = `${process.env.BASE_URL}/uploads/${req.file.filename}`;
-
+      updateData.image = req.file ? `/uploads/${req.file.filename}` : null;
     }
 
     const category = await Category.findByIdAndUpdate(
