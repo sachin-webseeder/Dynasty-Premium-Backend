@@ -23,6 +23,7 @@ const isValidObjectId = (id) => {
   return mongoose.Types.ObjectId.isValid(id) && id.match(/^[0-9a-fA-F]{24}$/);
 };
 
+
 // ADD PRODUCT API
 export const addProduct = asyncHandler(async (req, res) => {
   const body = req.body;
@@ -35,40 +36,27 @@ export const addProduct = asyncHandler(async (req, res) => {
   }
 
   let categoryId = body.category.trim();
-  let categoryDoc;
 
-  // CASE 1 → Existing category (ObjectId)
-  if (isValidObjectId(categoryId)) {
-    categoryDoc = await Category.findById(categoryId);
-
-    if (!categoryDoc) {
-      return res.status(404).json({
-        success: false,
-        message: "Category not found",
-      });
-    }
+  // Validate ObjectId and check if category exists (Original 'CASE 1' only)
+  if (!isValidObjectId(categoryId)) {
+    // Category ID invalid format
+    return res.status(400).json({
+      success: false,
+      message: "Invalid category ID format",
+    });
   }
 
-  // CASE 2 → New category entered as text
-  else {
-    const newCatName = categoryId;
+  const categoryDoc = await Category.findById(categoryId);
 
-    // Check if same category already exists
-    const existing = await Category.findOne({ name: newCatName });
-    if (existing) {
-      categoryDoc = existing;
-    }
-    else {
-      // Create a new category
-      categoryDoc = await Category.create({
-        name: newCatName,
-        displayName: newCatName,
-        icon: "📦",   // optional
-        image: null,
-      });
-    }
-    categoryId = categoryDoc._id;
+  if (!categoryDoc) {
+    // Category not found
+    return res.status(404).json({
+      success: false,
+      message: "Category not found",
+    });
   }
+  
+  // categoryId is confirmed to be a valid, existing ID
 
   // Calculate discount
   let discountPercent = toNum(body.discountPercent) || 0;
@@ -76,13 +64,18 @@ export const addProduct = asyncHandler(async (req, res) => {
   const originalPrice = toNum(body.originalPrice);
 
   if (originalPrice && price && originalPrice > price) {
-    discountPercent = Math.round(((originalPrice - price) / originalPrice) * 100);
+    discountPercent = Math.round(
+      ((originalPrice - price) / originalPrice) * 100
+    );
   }
+
+  console.log(body.availableQuantitiesImage);
+  
 
   // Create product payload
   const payload = {
     dishName: body.dishName.trim(),
-    category: categoryId,
+    category: categoryId, 
     volume: body.volume?.trim() || "1 Litre Pouch",
     availableQuantities: parseJSON(body.availableQuantities),
     attributes: parseJSON(body.attributes),
@@ -112,7 +105,6 @@ export const addProduct = asyncHandler(async (req, res) => {
     product,
   });
 });
-
 // Get All PRODUCTd API
 export const getProducts = asyncHandler(async (req, res) => {
   const { search = "", category = "All", platform = "web" } = req.query;
@@ -120,7 +112,6 @@ export const getProducts = asyncHandler(async (req, res) => {
   const BASE_URL = process.env.BASE_URL || "http://localhost:5000";
 
   let query = {};
-
 
   // SEARCH FILTER
 
@@ -131,7 +122,6 @@ export const getProducts = asyncHandler(async (req, res) => {
     };
   }
 
-
   // CATEGORY FILTER
 
   if (category !== "All") {
@@ -140,7 +130,6 @@ export const getProducts = asyncHandler(async (req, res) => {
     if (mongoose.Types.ObjectId.isValid(trimmedCat)) {
       query.category = trimmedCat;
     } else {
-
       const catDoc = await Category.findOne({
         name: { $regex: `^${trimmedCat}$`, $options: "i" },
       });
@@ -153,7 +142,6 @@ export const getProducts = asyncHandler(async (req, res) => {
     }
   }
 
-
   //GET PRODUCTS
 
   const products = await Product.find(query)
@@ -164,7 +152,7 @@ export const getProducts = asyncHandler(async (req, res) => {
     return res.json({ success: true, total: 0, products: [] });
   }
 
-
+  // **UPDATED** formatProduct to include image URL in availableQuantities
   const formatProduct = (p) => {
     let savings = null;
 
@@ -173,6 +161,11 @@ export const getProducts = asyncHandler(async (req, res) => {
       const percent = Math.round((amount / p.originalPrice) * 100);
       savings = { amount, percent };
     }
+
+    const formattedQuantities = (p.availableQuantities || []).map((q) => ({
+      ...q,
+      image: q.image ? `${BASE_URL}${q.image}` : null, 
+    }));
 
     return {
       id: p._id,
@@ -185,14 +178,13 @@ export const getProducts = asyncHandler(async (req, res) => {
       discount: savings ? `${savings.percent}% OFF` : null,
       savings: savings ? `Saving ₹${savings.amount}` : null,
       volume: p.volume,
-      availableQuantities: p.availableQuantities || [],
+      availableQuantities: formattedQuantities, 
       attributes: p.attributes || [],
       benefits: p.benefits || [],
       inStock: p.stock > 0,
       isVIP: p.isVIP || false,
     };
   };
-
 
   // MOBILE FORMAT
 
@@ -206,7 +198,6 @@ export const getProducts = asyncHandler(async (req, res) => {
     });
   }
 
-
   // WEB FORMAT
 
   const webProducts = products.map(formatProduct);
@@ -218,7 +209,6 @@ export const getProducts = asyncHandler(async (req, res) => {
   });
 });
 
-
 // GET SINGLE PRODUCT
 
 export const getProductById = asyncHandler(async (req, res) => {
@@ -229,17 +219,19 @@ export const getProductById = asyncHandler(async (req, res) => {
   if (!isValidObjectId(productId)) {
     return res.status(400).json({
       success: false,
-      message: "Invalid product ID format"
+      message: "Invalid product ID format",
     });
   }
 
-  const product = await Product.findById(productId)
-    .populate('category', 'name displayName icon');
+  const product = await Product.findById(productId).populate(
+    "category",
+    "name displayName icon"
+  );
 
   if (!product) {
     return res.status(404).json({
       success: false,
-      message: "Product not found"
+      message: "Product not found",
     });
   }
 
@@ -249,9 +241,17 @@ export const getProductById = asyncHandler(async (req, res) => {
   let savings = null;
   if (product.originalPrice && product.originalPrice > product.price) {
     const savingAmount = product.originalPrice - product.price;
-    const savingPercent = Math.round((savingAmount / product.originalPrice) * 100);
+    const savingPercent = Math.round(
+      (savingAmount / product.originalPrice) * 100
+    );
     savings = { amount: savingAmount.toFixed(2), percent: savingPercent };
   }
+
+  // **NEW** formatting for availableQuantities
+  const formattedQuantities = (product.availableQuantities || []).map((q) => ({
+    ...q.toObject(),
+    image: q.image ? `${BASE_URL}${q.image}` : null,
+  }));
 
   // MOBILE RESPONSE
   if (platform === "mobile") {
@@ -263,7 +263,7 @@ export const getProductById = asyncHandler(async (req, res) => {
         name: product.dishName,
         category: product.category?.displayName || "Uncategorized",
         volume: product.volume,
-        availableQuantities: product.availableQuantities || [],
+        availableQuantities: formattedQuantities, 
         attributes: product.attributes || [],
         price: product.price,
         originalPrice: product.originalPrice || null,
@@ -275,13 +275,17 @@ export const getProductById = asyncHandler(async (req, res) => {
         isVIP: product.isVIP || false,
         inStock: product.stock > 0,
         vegetarian: product.vegetarian,
-        preparationTime: product.preparationTime || 5
-      }
+        preparationTime: product.preparationTime || 5,
+      },
     });
   }
 
   // WEB RESPONSE
   const productData = product.toObject({ virtuals: true });
+
+  // **NEW** Override the default availableQuantities with BASE_URL applied
+  productData.availableQuantities = formattedQuantities;
+
   if (!productData.savings) {
     productData.savings = savings;
   }
@@ -289,10 +293,9 @@ export const getProductById = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     platform: "web",
-    product: productData
+    product: productData,
   });
 });
-
 
 // UPDATE PRODUCT
 export const updateProduct = asyncHandler(async (req, res) => {
@@ -302,7 +305,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
   if (!isValidObjectId(productId)) {
     return res.status(400).json({
       success: false,
-      message: "Invalid product ID format"
+      message: "Invalid product ID format",
     });
   }
 
@@ -311,7 +314,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
   if (!product) {
     return res.status(404).json({
       success: false,
-      message: "Product not found"
+      message: "Product not found",
     });
   }
 
@@ -324,7 +327,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
     if (!isValidObjectId(categoryId)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid category ID format"
+        message: "Invalid category ID format",
       });
     }
 
@@ -332,7 +335,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
     if (!categoryExists) {
       return res.status(404).json({
         success: false,
-        message: "Category not found"
+        message: "Category not found",
       });
     }
   }
@@ -344,7 +347,9 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   if (newOriginalPrice && newPrice) {
     if (newOriginalPrice > newPrice) {
-      discountPercent = Math.round(((newOriginalPrice - newPrice) / newOriginalPrice) * 100);
+      discountPercent = Math.round(
+        ((newOriginalPrice - newPrice) / newOriginalPrice) * 100
+      );
     } else {
       discountPercent = 0;
     }
@@ -354,8 +359,12 @@ export const updateProduct = asyncHandler(async (req, res) => {
   product.dishName = body.dishName?.trim() || product.dishName;
   product.category = body.category?.trim() || product.category;
   product.volume = body.volume?.trim() || product.volume;
-  product.availableQuantities = body.availableQuantities ? parseJSON(body.availableQuantities) : product.availableQuantities;
-  product.attributes = body.attributes ? parseJSON(body.attributes) : product.attributes;
+  product.availableQuantities = body.availableQuantities
+    ? parseJSON(body.availableQuantities)
+    : product.availableQuantities;
+  product.attributes = body.attributes
+    ? parseJSON(body.attributes)
+    : product.attributes;
   product.price = newPrice ?? product.price;
   product.originalPrice = newOriginalPrice ?? product.originalPrice;
   product.discountPercent = discountPercent;
@@ -364,21 +373,34 @@ export const updateProduct = asyncHandler(async (req, res) => {
   product.calories = toNum(body.calories) ?? product.calories;
   product.description = body.description ?? product.description;
   product.benefits = body.benefits ? parseJSON(body.benefits) : product.benefits;
-  product.availableForOrder = body.availableForOrder === "true" ? true :
-                             body.availableForOrder === "false" ? false :
-                             product.availableForOrder;
-  product.vegetarian = body.vegetarian === "true" ? true :
-                         body.vegetarian === "false" ? false :
-                         product.vegetarian;
-  product.isVIP = body.isVIP === "true" ? true :
-                   body.isVIP === "false" ? false :
-                   product.isVIP;
+  product.availableForOrder =
+    body.availableForOrder === "true"
+      ? true
+      : body.availableForOrder === "false"
+      ? false
+      : product.availableForOrder;
+  product.vegetarian =
+    body.vegetarian === "true"
+      ? true
+      : body.vegetarian === "false"
+      ? false
+      : product.vegetarian;
+  product.isVIP =
+    body.isVIP === "true"
+      ? true
+      : body.isVIP === "false"
+      ? false
+      : product.isVIP;
   product.stock = toNum(body.stock) ?? product.stock;
 
   // Handle image update
   if (req.file) {
     if (product.image) {
-      const oldPath = path.join(process.cwd(), "uploads", path.basename(product.image));
+      const oldPath = path.join(
+        process.cwd(),
+        "uploads",
+        path.basename(product.image)
+      );
       if (fs.existsSync(oldPath)) {
         fs.unlinkSync(oldPath);
       }
@@ -387,15 +409,14 @@ export const updateProduct = asyncHandler(async (req, res) => {
   }
 
   await product.save();
-  await product.populate('category', 'name displayName icon');
+  await product.populate("category", "name displayName icon");
 
   res.json({
     success: true,
     message: "Product updated successfully",
-    product
+    product,
   });
 });
-
 
 // DELETE PRODUCT
 
@@ -406,7 +427,7 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   if (!isValidObjectId(productId)) {
     return res.status(400).json({
       success: false,
-      message: "Invalid product ID format"
+      message: "Invalid product ID format",
     });
   }
 
@@ -415,13 +436,17 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   if (!product) {
     return res.status(404).json({
       success: false,
-      message: "Product not found"
+      message: "Product not found",
     });
   }
 
   // Remove image
   if (product.image) {
-    const filePath = path.join(process.cwd(), "uploads", path.basename(product.image));
+    const filePath = path.join(
+      process.cwd(),
+      "uploads",
+      path.basename(product.image)
+    );
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
@@ -431,37 +456,51 @@ export const deleteProduct = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    message: "Product deleted successfully"
+    message: "Product deleted successfully",
   });
 });
-
 
 // GET PRODUCTS GROUPED BY CATEGORY
 
 export const getProductsGroupedByCategory = asyncHandler(async (req, res) => {
-  const categories = await Category.find()
-    .sort({ sortOrder: 1 });
+  const BASE_URL = process.env.BASE_URL || "http://localhost:5000";
+
+  const categories = await Category.find().sort({ sortOrder: 1 });
 
   const groupedProducts = await Promise.all(
     categories.map(async (category) => {
       const products = await Product.find({
         category: category._id,
-        availableForOrder: true
+        availableForOrder: true,
       })
-      .select('-addedBy -createdAt -updatedAt')
-      .lean();
+        .select("-addedBy -createdAt -updatedAt")
+        .lean();
 
-      const productsWithSavings = products.map(product => {
+      // **UPDATED** to include image URL in availableQuantities
+      const productsWithSavings = products.map((product) => {
         let savings = null;
-        if (product.originalPrice && product.originalPrice > product.price) {
+        if (
+          product.originalPrice &&
+          product.originalPrice > product.price
+        ) {
           const savingAmount = product.originalPrice - product.price;
-          const savingPercent = Math.round((savingAmount / product.originalPrice) * 100);
+          const savingPercent = Math.round(
+            (savingAmount / product.originalPrice) * 100
+          );
           savings = { amount: savingAmount.toFixed(2), percent: savingPercent };
         }
+
+        const formattedQuantities = (product.availableQuantities || []).map(
+          (q) => ({
+            ...q,
+            image: q.image ? `${BASE_URL}${q.image}` : null, 
+          })
+        );
+
         return {
           ...product,
           savings,
-          availableQuantities: product.availableQuantities || []
+          availableQuantities: formattedQuantities, 
         };
       });
 
@@ -470,17 +509,17 @@ export const getProductsGroupedByCategory = asyncHandler(async (req, res) => {
           _id: category._id,
           name: category.name,
           displayName: category.displayName,
-          icon: category.icon
+          icon: category.icon,
         },
-        products: productsWithSavings
+        products: productsWithSavings,
       };
     })
   );
 
-  const filteredGroups = groupedProducts.filter(g => g.products.length > 0);
+  const filteredGroups = groupedProducts.filter((g) => g.products.length > 0);
 
   res.json({
     success: true,
-    data: filteredGroups
+    data: filteredGroups,
   });
 });

@@ -5,97 +5,101 @@ const productSchema = new mongoose.Schema(
   {
     dishName: {
       type: String,
-      required: true
+      required: true,
     },
 
     category: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
-      required: true
+      required: true,
     },
 
     volume: {
       type: String,
     },
 
-
     availableQuantities: [
       {
-        label: { type: String, required: true },   // "500 ml"
-        value: { type: Number, required: true },   // 500
-        unit: { type: String, required: true },    // "ml"
-        price: { type: Number, required: false }   // optional price
-      }
+        label: { type: String, required: true },
+        value: { type: Number, required: true },
+        unit: {
+          type: String,
+          enum: ["ml", "kg", "gm"],
+          required: true,
+        },
+        price: { type: Number, required: false },
+        stock: { type: Number, required: true, default: 0 },
+      },
     ],
 
-    attributes: [String],
+    attributes: [String],  //optional
 
     price: {
       type: Number,
-      required: true
+      required: true,
     },
 
     originalPrice: {
-      type: Number
+      type: Number,
     },
 
     discountPercent: {
       type: Number,
-      default: 0
+      default: 0,
     },
 
     cost: {
       type: Number,
-      required: true
+      required: true,
     },
 
-    preparationTime: {
-      type: Number
+    preparationTime: { 
+      type: Number,     //optional
     },
 
     calories: {
-      type: Number
+      type: Number,  //optional
     },
 
     description: {
-      type: String
+      type: String,
     },
 
     benefits: [String],
 
     image: {
-      type: String
+      type: String,
     },
 
     availableForOrder: {
       type: Boolean,
-      default: true
+      default: true,
     },
 
     vegetarian: {
       type: Boolean,
-      default: false
+      default: false,
     },
 
     isVIP: {
       type: Boolean,
-      default: false
+      default: false,
     },
 
     stock: {
       type: Number,
-      default: 0
+      default: 0,
     },
 
     addedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User"
-    }
+      ref: "User",
+    },
   },
   {
     timestamps: true,
     toJSON: { virtuals: true },
-    toObject: { virtuals: true }
+    toObject: { virtuals: true },
   }
 );
 
@@ -107,7 +111,7 @@ productSchema.virtual("savings").get(function () {
 
     return {
       amount: savingAmount.toFixed(2),
-      percent: savingPercent
+      percent: savingPercent,
     };
   }
   return null;
