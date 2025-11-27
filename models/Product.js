@@ -82,7 +82,7 @@ const productSchema = new mongoose.Schema(
     },
 
     isVIP: {
-      type: Boolean,
+      type: Boolean,   //optional
       default: false,
     },
 

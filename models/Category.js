@@ -19,7 +19,7 @@ const categorySchema = new mongoose.Schema(
       type: String
     },
     sortOrder: {
-      type: Number,
+      type: Number,  //optional
       default: 0
     },
     isActive: {
@@ -32,5 +32,6 @@ const categorySchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
 
 export default mongoose.model("Category", categorySchema);
