@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import generateToken from '../utils/generateToken.js';
 import asyncHandler from 'express-async-handler';
 
-// Register new user
+// REGISTER USER
 const registerUser = asyncHandler(async (req, res) => {
   const {
     firstName,
@@ -17,30 +17,29 @@ const registerUser = asyncHandler(async (req, res) => {
     role
   } = req.body;
 
-  // VALIDATIONS
+  // Required fields
   if (!firstName || !email || !password || !confirmPassword) {
-    res.status(400);
-    throw new Error('Please fill all required fields');
+    return res.status(400).json({ success: false, message: "All fields are required" });
   }
 
   if (password !== confirmPassword) {
-    res.status(400);
-    throw new Error('Passwords do not match');
+    return res.status(400).json({ success: false, message: "Passwords do not match" });
   }
 
   if (password.length < 6) {
-    res.status(400);
-    throw new Error('Password must be at least 6 characters');
+    return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
   }
 
-  // Check if user exists
+  // Check if user already exists
   const userExists = await User.findOne({
-    $or: [{ email }, { username }]
+    $or: [
+      { email: email.toLowerCase() },
+      { username: username }
+    ]
   });
 
   if (userExists) {
-    res.status(400);
-    throw new Error('User already exists with this email/username');
+    return res.status(400).json({ success: false, message: "User already exists" });
   }
 
   // Hash password
@@ -50,57 +49,91 @@ const registerUser = asyncHandler(async (req, res) => {
   // Create user
   const user = await User.create({
     firstName,
-    lastName,
+    lastName: lastName || "",
     username,
     email: email.toLowerCase(),
     password: hashedPassword,
     phone,
-    role: role || 'Customer'
+    role: role || "Customer"
   });
 
-  if (user) {
-    res.status(201).json({
-      success: true,
-      token: generateToken(user._id, user.role),
-      user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        username: user.username,
-        email: user.email,
-        role: user.role
-      }
-    });
-  } else {
-    res.status(400);
-    throw new Error('Invalid user data');
-  }
+  res.status(201).json({
+    success: true,
+    message: "Registration successful",
+    token: generateToken(user._id, user.role),
+    user: {
+      id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      username: user.username,
+      email: user.email,
+      phone: user.phone,
+      role: user.role
+    }
+  });
 });
 
-//   Login user
+// LOGIN USER – YE WALA SABSE ZAROORI FIX
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  const user = await User.findOne({ 
-    $or: [{ email: email.toLowerCase() }, { username: email }] 
-  });
-
-  if (user && (await bcrypt.compare(password, user.password))) {
-    res.json({
-      success: true,
-      token: generateToken(user._id, user.role),
-      user: {
-        id: user._id,
-        firstName: user.firstName,
-        username: user.username,
-        email: user.email,
-        role: user.role
-      }
+  // Email/username empty check
+  if (!email || !password) {
+    return res.status(400).json({
+      success: false,
+      message: "Email/Username and password are required"
     });
-  } else {
-    res.status(401);
-    throw new Error('Invalid email/username or password');
   }
+
+  // Find user by email OR username + MUST include password field
+  const user = await User.findOne({
+    $or: [
+      { email: email.toLowerCase() },
+      { username: email }
+    ]
+  }).select("+password");   // ← YE LINE SABSE BADI FIX HAI!
+
+  if (!user) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid credentials"
+    });
+  }
+
+  
+  const isMatch = await bcrypt.compare(password, user.password);
+
+  if (!isMatch) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid credentials"
+    });
+  }
+
+
+  if (!user.isEnabled) {
+    return res.status(403).json({
+      success: false,
+      message: "Account disabled. Contact admin."
+    });
+  }
+
+  // SUCCESS – Send token
+  res.json({
+    success: true,
+    message: "Login successful",
+    token: generateToken(user._id, user.role),
+    user: {
+      id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      username: user.username,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      permissions: user.permissions || []
+    }
+  });
 });
 
 export { registerUser, loginUser };

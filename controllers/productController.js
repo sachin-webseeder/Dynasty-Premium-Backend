@@ -37,9 +37,8 @@ export const addProduct = asyncHandler(async (req, res) => {
 
   let categoryId = body.category.trim();
 
-  // Validate ObjectId and check if category exists (Original 'CASE 1' only)
+  // Validate ObjectId and check if category exists
   if (!isValidObjectId(categoryId)) {
-    // Category ID invalid format
     return res.status(400).json({
       success: false,
       message: "Invalid category ID format",
@@ -49,39 +48,34 @@ export const addProduct = asyncHandler(async (req, res) => {
   const categoryDoc = await Category.findById(categoryId);
 
   if (!categoryDoc) {
-    // Category not found
     return res.status(404).json({
       success: false,
       message: "Category not found",
     });
   }
-  
-  // categoryId is confirmed to be a valid, existing ID
 
-  // Calculate discount
-  let discountPercent = toNum(body.discountPercent) || 0;
+  // Hybrid Discount Handling
   const price = toNum(body.price);
   const originalPrice = toNum(body.originalPrice);
 
-  if (originalPrice && price && originalPrice > price) {
-    discountPercent = Math.round(
-      ((originalPrice - price) / originalPrice) * 100
-    );
-  }
+  let discountPercent = null;
 
-  console.log(body.availableQuantitiesImage);
-  
+  if (body.discountPercent !== undefined && body.discountPercent !== null) {
+    discountPercent = toNum(body.discountPercent);
+  } else if (originalPrice && price && originalPrice > price) {
+    discountPercent = Math.round(((originalPrice - price) / originalPrice) * 100);
+  }
 
   // Create product payload
   const payload = {
     dishName: body.dishName.trim(),
-    category: categoryId, 
+    category: categoryId,
     volume: body.volume?.trim() || "1 Litre Pouch",
     availableQuantities: parseJSON(body.availableQuantities),
     attributes: parseJSON(body.attributes),
     price,
     originalPrice,
-    discountPercent,
+    discountPercent, // hybrid handling
     cost: toNum(body.cost),
     preparationTime: toNum(body.preparationTime),
     calories: toNum(body.calories),
@@ -99,10 +93,13 @@ export const addProduct = asyncHandler(async (req, res) => {
   const product = await Product.create(payload);
   await product.populate("category", "name displayName icon image");
 
+
   res.status(201).json({
     success: true,
     message: "Product added successfully",
     product,
+    savings: product.savings, 
+    profit: product.price - product.cost, 
   });
 });
 // Get All PRODUCTd API
