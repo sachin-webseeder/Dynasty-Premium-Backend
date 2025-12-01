@@ -40,34 +40,63 @@ export const getAllPanelUsers = asyncHandler(async (req, res) => {
   });
 });
 
-// CREATE PANEL USER (Only Admin)
-export const createPanelUser = asyncHandler(async (req, res) => {
-  const { firstName, lastName, email, phone, password, permissions } = req.body;
 
+// CREATE MULTIPLE PANEL USERS (Admin Only)
+export const createPanelUser = asyncHandler(async (req, res) => {
+  const { firstName, lastName = "", email, phone, password, permissions = ["dashboard", "orders"] } = req.body;
+
+  // Compulsory fields check
   if (!firstName || !email || !phone || !password) {
-    return res.status(400).json({ success: false, message: "All fields required" });
+    return res.status(400).json({
+      success: false,
+      message: "firstName, email, phone and password are required"
+    });
   }
 
-  const exists = await User.findOne({ $or: [{ email }, { phone }] });
-  if (exists) return res.status(400).json({ success: false, message: "User already exists" });
+  // Clean data
+  const cleanEmail = email.toLowerCase().trim();
+  const cleanPhone = phone.trim();
 
+  // Check if already exists
+  const exists = await User.findOne({
+    $or: [{ email: cleanEmail }, { phone: cleanPhone }]
+  });
+
+  if (exists) {
+    return res.status(400).json({
+      success: false,
+     message: "Panel User already exists",
+    });
+  }
+
+  // Hash password
   const salt = await bcrypt.genSalt(12);
   const hashedPassword = await bcrypt.hash(password, salt);
 
+  // Create PanelUser
   const user = await User.create({
-    firstName,
-    lastName: lastName || "",
-    email,
-    phone,
+    firstName: firstName.trim(),
+    lastName: lastName.trim(),
+    email: cleanEmail,
+    phone: cleanPhone,
     password: hashedPassword,
     role: "PanelUser",
-    permissions: permissions || ["dashboard", "orders"]
+    panelAccess: true,
+    permissions: permissions
   });
 
   res.status(201).json({
     success: true,
     message: "Panel User created successfully",
-    user: { id: user._id, name: user.fullName, email, role: "PanelUser", permissions: user.permissions }
+    user: {
+      id: user._id,
+      name: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      role: "PanelUser",
+      permissions: user.permissions,
+      panelAccess: true
+    }
   });
 });
 
