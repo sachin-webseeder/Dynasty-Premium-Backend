@@ -1,7 +1,12 @@
 // server.js
+import dotenv from 'dotenv';
+dotenv.config();
+// console.log("Environment Loading Test:");
+// console.log("PORT:", process.env.PORT);
+// console.log("RAZORPAY_KEY_ID:", process.env.RAZORPAY_KEY_ID);
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import connectDB from './config/db.js';
@@ -10,8 +15,9 @@ import productRoutes from './routes/productRoutes.js';
 import customerRoutes from "./routes/customerRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
 import userRoutes from './routes/userRoutes.js'; 
+import membershipRoutes from "./routes/membershipRoutes.js";
 
-dotenv.config();
+
 const app = express();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -52,7 +58,7 @@ app.use('/api/users', userRoutes);
 app.use("/api/customer", customerRoutes);
 app.use('/api/products', productRoutes);  
 app.use("/api/categories", categoryRoutes);
-
+app.use("/api/membership", membershipRoutes);
 // Test Route
 app.get('/', (req, res) => {
   res.json({ 
