@@ -34,7 +34,8 @@ const corsOptions = {
     'http://127.0.0.1:3000',
     'http://127.0.0.1:5173',
     `https://dynasty2025.netlify.app`,
-    'https://dairy-admin-panel-pzuy.vercel.app'
+    'https://dairy-admin-panel-pzuy.vercel.app',
+    'https://dairy-admin-panel-pzuy-bzxvx2gy8.vercel.app'
    
     
   ],
