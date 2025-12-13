@@ -10,7 +10,7 @@ export const PANEL_PERMISSIONS = [
 
 // GET ALL USERS
 export const getAllPanelUsers = asyncHandler(async (req, res) => {
-  const users = await User.find({})
+  const users = await User.find({ role: "PanelUser" })
     .select("firstName lastName fullName email phone role panelAccess permissions isEnabled createdAt")
     .sort({ createdAt: -1 });
 

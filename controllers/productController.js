@@ -520,3 +520,55 @@ export const getProductsGroupedByCategory = asyncHandler(async (req, res) => {
     data: filteredGroups,
   });
 });
+
+
+// ADD PRODUCT VARIANT
+export const addProductVariant = asyncHandler(async (req, res) => {
+  const productId = req.params.id.trim();
+  const body = req.body;
+
+  // Validate productId
+  if (!isValidObjectId(productId)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid product ID format",
+    });
+  }
+
+  const product = await Product.findById(productId);
+
+  if (!product) {
+    return res.status(404).json({
+      success: false,
+      message: "Product not found",
+    });
+  }
+
+  // Validation
+  if (!body.label || !body.price) {
+    return res.status(400).json({
+      success: false,
+      message: "Variant label & price are required",
+    });
+  }
+
+  // Create variant object
+  const variant = {
+    label: body.label.trim(),
+    price: Number(body.price),
+    stock: Number(body.stock) || 0,
+    image: req.file ? `/uploads/${req.file.filename}` : null,
+  };
+
+  // Push variant into product
+  product.availableQuantities.push(variant);
+
+  await product.save();
+
+  res.status(201).json({
+    success: true,
+    message: "Variant added successfully",
+    variant,
+    productId: product._id,
+  });
+});
