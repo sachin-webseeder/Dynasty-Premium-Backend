@@ -18,14 +18,14 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ✅ Universal CORS for Vercel frontend + local dev
+
 app.use(cors({
-  origin: ['https://dairy-admin-panel-pzuy.vercel.app'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: '*',
+  // credentials: true,
+  // methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  // allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.options('*', cors());
+// app.options('*', cors());
 
 // Body parser
 app.use(express.json());
@@ -48,6 +48,11 @@ app.use('/api/membership', membershipRoutes);
 app.get('/', (req, res) => {
   res.json({ message: 'DYNASTY PREMIUM BACKEND LIVE', time: new Date().toLocaleString('en-IN') });
 });
+
+app.get('/ping', (req, res) => {
+  res.json({ message: 'pong', time: new Date().toLocaleString('en-IN') });
+});
+
 
 // Start server
 const PORT = process.env.PORT || 5000;
