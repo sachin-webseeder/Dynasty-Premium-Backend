@@ -19,37 +19,15 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const corsOptions = {
-  origin: (origin, callback) => {
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:5173',
-      'https://dynasty2025.netlify.app',
-      'https://dairy-admin-panel-pzuy.vercel.app',
-      'https://dairy-admin-panel-pzuy-bzxvx2gy8.vercel.app',
-    ];
+app.use(
+  cors({
+    origin: true, 
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
 
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type',
-    'Authorization',
-    'X-Requested-With',
-    'Accept',
-    'Origin'
-  ],
-};
-
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.options('*', cors());
 app.use(express.json());
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -66,8 +44,7 @@ app.use('/api/membership', membershipRoutes);
 app.get('/', (req, res) => {
   res.json({
     message: 'DYNASTY PREMIUM BACKEND LIVE',
-    status: 'running',
-    time: new Date().toLocaleString('en-IN')
+    time: new Date().toLocaleString('en-IN'),
   });
 });
 
