@@ -10,7 +10,6 @@ const userSchema = new mongoose.Schema({
   phone: { type: String, required: true, unique: true, trim: true },
   password: { type: String, required: true, select: false },
 
-  // ONLY 3 ROLES
   role: {
     type: String,
     enum: ["Admin", "PanelUser", "Customer"],
@@ -27,37 +26,67 @@ const userSchema = new mongoose.Schema({
 
   isEnabled: { type: Boolean, default: true },
 
-  // Customer fields
-  addresses: [{ type: mongoose.Schema.Types.Mixed }],
-  cart: [{ type: mongoose.Schema.Types.Mixed }],
+  // Customer Only Fields
+  addresses: [
+    {
+      name: String,
+      flat: String,
+      area: String,
+      city: String,
+      pincode: String,
+      type: { type: String, enum: ["Home", "Work", "Other"], default: "Home" },
+      isDefault: { type: Boolean, default: false }
+    }
+  ],
+
+cart: [
+  {
+    product: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Product", 
+      required: true 
+    },
+    variantId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      required: false ,
+      default: null
+    },
+    quantity: { 
+      type: Number, 
+      required: true, 
+      min: 1, 
+      default: 1 
+    },
+    addedAt: { 
+      type: Date, 
+      default: Date.now 
+    }
+  }
+],
   totalOrders: { type: Number, default: 0 },
   totalSpent: { type: Number, default: 0 },
   customerType: { type: String, enum: ["New", "Returning", "High-Value"], default: "New" }
 }, { timestamps: true });
 
-// Virtual + Pre-save
+// Virtual displayName
 userSchema.virtual('displayName').get(function () {
   return this.fullName || `${this.firstName} ${this.lastName || ''}`.trim();
 });
 
+// Pre-save logic
 userSchema.pre('save', function(next) {
   this.fullName = `${this.firstName} ${this.lastName || ''}`.trim();
 
-  // Admin gets full access
   if (this.role === "Admin") {
     this.panelAccess = true;
     this.permissions = ["dashboard", "inventory", "orders", "delivery", "customers", "reports", "products", "settings"];
   }
 
-  // PanelUser gets panel access
   if (this.role === "PanelUser") {
     this.panelAccess = true;
-    if (this.permissions.length === 0) {
-      this.permissions = ["dashboard", "orders"];
-    }
+    if (this.permissions.length === 0) this.permissions = ["dashboard", "orders"];
   }
 
-  // Customer no panel access
   if (this.role === "Customer") {
     this.panelAccess = false;
     this.permissions = [];

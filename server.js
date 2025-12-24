@@ -14,6 +14,9 @@ import categoryRoutes from './routes/categoryRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import membershipRoutes from './routes/membershipRoutes.js';
 import productVariantRoutes from "./routes/productVariantRoutes.js";
+import cartRoutes from './routes/cartRoutes.js';
+import orderRoutes from './routes/orderRoutes.js';
+
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
@@ -45,6 +48,9 @@ app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/membership', membershipRoutes);
 app.use("/api/products", productVariantRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/cart", cartRoutes);
+
 
 // Test route
 app.get('/', (req, res) => {
